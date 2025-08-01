@@ -1,19 +1,185 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Time Calculator</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Attendance Calculator</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #f0f4f8;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 16px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 600px;
+      text-align: center;
+    }
+    h1 {
+      margin-bottom: 15px;
+    }
+    textarea {
+      width: 100%;
+      height: 150px;
+      margin-bottom: 20px;
+      padding: 10px;
+      font-family: monospace;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+    button {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      font-size: 16px;
+      border-radius: 10px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    .output {
+      margin-top: 20px;
+      font-size: 16px;
+    }
+    canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      z-index: 9999;
+    }
+  </style>
 </head>
 <body>
   <div class="container">
-    <h1>🕒 Time Calculator</h1>
-    <textarea id="input" placeholder="Paste your attendance entries here..."></textarea>
-    <button onclick="processData()">Click</button>
-    <div id="output"></div>
-    <canvas id="confetti-canvas"></canvas>
+    <h1>Attendance Calculator</h1>
+    <textarea id="attendanceInput" placeholder="Paste your attendance here. Ex:\n01-Aug-25 08:45 AM In\n01-Aug-25 09:30 AM Out"></textarea>
+    <br/>
+    <button onclick="calculate()">Click</button>
+    <div class="output" id="output"></div>
+    <canvas id="confetti"></canvas>
   </div>
-  <script src="script.js"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <script>
+    const requiredMinutes = 8 * 60 + 30;
+
+    function parseTime(str) {
+      const [dateStr, timeStr, meridian] = str.trim().split(" ");
+      const [day, month, year] = dateStr.split("-");
+      const monthIndex = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].indexOf(month);
+      let [hour, minute] = timeStr.split(":").map(Number);
+      if (meridian.toUpperCase() === "PM" && hour !== 12) hour += 12;
+      if (meridian.toUpperCase() === "AM" && hour === 12) hour = 0;
+      const fullYear = Number("20" + year);
+      return new Date(fullYear, monthIndex, Number(day), hour, minute);
+    }
+
+    function formatTime(date) {
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+    }
+
+    function calculate() {
+      const input = document.getElementById('attendanceInput').value.trim();
+      if (!input) return alert("Please paste your attendance data.");
+
+      const lines = input.split('\n').filter(l => l.trim() !== "");
+      const attendanceData = [];
+
+      for (const line of lines) {
+        const parts = line.split('\t');
+        const timeIndex = parts.findIndex(p => /\d{2}-\w{3}-\d{2}/.test(p) && /\d{1,2}:\d{2}/.test(p));
+        const status = parts.includes("In") ? "In" : parts.includes("Out") ? "Out" : null;
+        if (timeIndex !== -1 && status) {
+          const timeStr = parts[timeIndex] + ' ' + parts[timeIndex + 1] + ' ' + parts[timeIndex + 2];
+          attendanceData.push({ time: timeStr, status });
+        }
+      }
+
+      let totalMinutes = 0;
+      let lastIn = null;
+
+      for (const entry of attendanceData) {
+        const time = parseTime(entry.time);
+        if (entry.status.toLowerCase() === "in") {
+          lastIn = time;
+        } else if (entry.status.toLowerCase() === "out" && lastIn) {
+          const diff = (time - lastIn) / 60000;
+          totalMinutes += diff;
+          lastIn = null;
+        }
+      }
+
+      let output = `Total Worked: ${Math.floor(totalMinutes / 60)}h ${Math.round(totalMinutes % 60)}m<br/>`;
+
+      const remaining = requiredMinutes - totalMinutes;
+      if (remaining > 0 && lastIn) {
+        const outTime = new Date(lastIn.getTime() + remaining * 60000);
+        output += `Expected Final Out Time: ${formatTime(outTime)}<br/>`;
+        output += getQuote(false);
+      } else if (remaining <= 0) {
+        output += `✅ You’ve completed your 8.5 hours!<br/>`;
+        output += getQuote(true);
+      } else {
+        output += `⚠ No unpaired 'In' found. Already complete or data misaligned.`;
+      }
+
+      const today = new Date();
+      if (today.getDay() === 5) {
+        output += "<br/><b>🎉 Happy Friday! Enjoy the weekend! 🎉</b>";
+        fireConfetti();
+      }
+
+      document.getElementById('output').innerHTML = output;
+    }
+
+    function getQuote(completed) {
+      const quotesDone = [
+        "You're done! Time to relax!",
+        "Take a deep breath, you’ve earned it.",
+        "Wrap it up — your day is complete!"
+      ];
+      const quotesTodo = [
+        "Keep going! Almost there!",
+        "A little more effort will get you there.",
+        "You’re doing great, stay focused!"
+      ];
+      const pool = completed ? quotesDone : quotesTodo;
+      return "<br/><i>" + pool[Math.floor(Math.random() * pool.length)] + "</i>";
+    }
+
+    function fireConfetti() {
+      const duration = 2 * 1000;
+      const animationEnd = Date.now() + duration;
+      const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+
+      function randomInRange(min, max) {
+        return Math.random() * (max - min) + min;
+      }
+
+      const interval = setInterval(function () {
+        const timeLeft = animationEnd - Date.now();
+        if (timeLeft <= 0) return clearInterval(interval);
+
+        const particleCount = 50 * (timeLeft / duration);
+        confetti(Object.assign({}, defaults, {
+          particleCount,
+          origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }
+        }));
+        confetti(Object.assign({}, defaults, {
+          particleCount,
+          origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }
+        }));
+      }, 250);
+    }
+  </script>
 </body>
 </html>
