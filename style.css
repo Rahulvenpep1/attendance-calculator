@@ -1,41 +1,64 @@
 body {
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-  background: #f0f8ff;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: #f7f9fc;
+  padding: 20px;
   margin: 0;
-  padding: 20px;
 }
+
 .container {
-  max-width: 800px;
+  max-width: 600px;
   margin: auto;
+  padding: 30px;
   background: white;
-  padding: 20px;
-  border-radius: 12px;
-  box-shadow: 0 0 20px rgba(0,0,0,0.1);
+  border-radius: 20px;
+  box-shadow: 0 0 15px rgba(0,0,0,0.1);
+  text-align: center;
 }
+
+h1 {
+  font-size: 28px;
+  margin-bottom: 20px;
+}
+
 textarea {
   width: 100%;
   height: 200px;
+  padding: 10px;
   font-size: 16px;
-  margin-bottom: 10px;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  resize: vertical;
 }
+
 button {
+  padding: 10px 20px;
+  font-size: 18px;
+  margin: 20px auto;
+  display: block;
+  cursor: pointer;
   background-color: #4CAF50;
   color: white;
-  padding: 12px 20px;
-  font-size: 16px;
   border: none;
   border-radius: 8px;
-  cursor: pointer;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  transition: 0.3s;
 }
-#output {
-  margin-top: 20px;
+
+button:hover {
+  background-color: #45a049;
+}
+
+#result {
   font-size: 18px;
+  margin-top: 20px;
 }
-canvas#confetti-canvas {
+
+#confetti-canvas {
   position: fixed;
   top: 0;
   left: 0;
   pointer-events: none;
   width: 100%;
   height: 100%;
+  z-index: 9999;
 }
