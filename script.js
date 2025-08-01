@@ -1,108 +1,107 @@
-function parseTime(str) {
-  const date = new Date("2000-01-01 " + str);
-  return isNaN(date) ? null : date;
+function calculate() {
+  const input = document.getElementById("input").value;
+  const lines = input.trim().split("\n");
+
+  let totalMillis = 0;
+  let inTime = null;
+  let lastTime = null;
+
+  lines.forEach(line => {
+    const parts = line.split("\t");
+    const type = parts[2]?.trim();
+    const timeStr = parts[6] || parts[5]; // fallback
+    const time = new Date(timeStr);
+
+    if (type === "In") {
+      inTime = time;
+    } else if (type === "Out" && inTime) {
+      totalMillis += time - inTime;
+      lastTime = time;
+      inTime = null;
+    }
+  });
+
+  const targetMillis = 8.5 * 60 * 60 * 1000;
+  const remainingMillis = targetMillis - totalMillis;
+
+  const result = document.getElementById("result");
+  const finalOut = document.getElementById("final-out-time");
+
+  const hours = Math.floor(totalMillis / (1000 * 60 * 60));
+  const minutes = Math.floor((totalMillis % (1000 * 60 * 60)) / (1000 * 60));
+
+  result.innerHTML = `🕓 Total Worked: <strong>${hours}h ${minutes}m</strong><br>`;
+
+  const now = new Date();
+  const isFriday = now.getDay() === 5;
+
+  if (remainingMillis > 0 && lastTime) {
+    const finalOutTime = new Date(lastTime.getTime() + remainingMillis);
+    finalOut.textContent = "🕒 To complete 8.5 hrs, stay until: " + formatTime(finalOutTime);
+    result.innerHTML += getReminderQuote();
+  } else {
+    finalOut.textContent = "✅ You've completed 8.5 hours!";
+    result.innerHTML += getSuccessQuote();
+    triggerConfetti();
+    if (isFriday) {
+      result.innerHTML += "<br>🎉 It's Friday! Happy Weekend!";
+    }
+  }
 }
 
-function showMessage(msg) {
-  document.getElementById("output").innerHTML = msg;
+function formatTime(date) {
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-function showConfetti() {
+function getSuccessQuote() {
+  const quotes = [
+    "Well done! Time to relax!",
+    "You made it! Enjoy the rest of your day!",
+    "Hard work pays off – great job!"
+  ];
+  return quotes[Math.floor(Math.random() * quotes.length)];
+}
+
+function getReminderQuote() {
+  const quotes = [
+    "Keep going, you're almost there!",
+    "Stay strong! Almost done!",
+    "Just a bit more to go. You’ve got this!"
+  ];
+  return quotes[Math.floor(Math.random() * quotes.length)];
+}
+
+// --- Confetti (simple version using canvas) ---
+function triggerConfetti() {
   const canvas = document.getElementById("confetti-canvas");
   const ctx = canvas.getContext("2d");
+  const particles = [];
+
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
-  const confettiCount = 150;
-  const confetti = Array.from({ length: confettiCount }, () => ({
-    x: Math.random() * canvas.width,
-    y: Math.random() * canvas.height - canvas.height,
-    r: Math.random() * 6 + 4,
-    d: Math.random() * confettiCount,
-    color: `hsl(${Math.random() * 360}, 100%, 50%)`
-  }));
+
+  for (let i = 0; i < 100; i++) {
+    particles.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height - canvas.height,
+      speed: Math.random() * 3 + 2,
+      radius: Math.random() * 6 + 4,
+      color: `hsl(${Math.random() * 360}, 100%, 50%)`
+    });
+  }
 
   function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    confetti.forEach(c => {
+    for (let p of particles) {
       ctx.beginPath();
-      ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2, false);
-      ctx.fillStyle = c.color;
+      ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+      ctx.fillStyle = p.color;
       ctx.fill();
-    });
-    update();
-  }
-
-  function update() {
-    confetti.forEach(c => {
-      c.y += Math.cos(c.d) + 1 + c.r / 2;
-      c.x += Math.sin(c.d);
-
-      if (c.y > canvas.height) {
-        c.y = -10;
-        c.x = Math.random() * canvas.width;
-      }
-    });
-  }
-
-  setInterval(draw, 20);
-}
-
-function processData() {
-  const raw = document.getElementById("input").value.trim();
-  const lines = raw.split("\n").map(l => l.trim()).filter(l => l);
-  const entries = [];
-
-  for (let line of lines) {
-    const parts = line.split(/\t+/);
-    const timeStr = parts[1];
-    const type = parts[2];
-    if (type === "In" || type === "Out") {
-      entries.push({ time: timeStr, type });
+      p.y += p.speed;
+      if (p.y > canvas.height) p.y = -p.radius;
     }
+    requestAnimationFrame(draw);
   }
 
-  if (entries.length === 0) {
-    showMessage("No valid entries found.");
-    return;
-  }
-
-  let totalMinutes = 0;
-  let stack = [];
-
-  for (let entry of entries) {
-    const time = parseTime(entry.time);
-    if (!time) continue;
-    if (entry.type === "In") {
-      stack.push(time);
-    } else if (entry.type === "Out" && stack.length) {
-      const inTime = stack.pop();
-      totalMinutes += (time - inTime) / 60000;
-    }
-  }
-
-  if (stack.length) {
-    const inTime = stack.pop();
-    const now = new Date();
-    now.setFullYear(2000, 0, 1);
-    totalMinutes += (now - inTime) / 60000;
-  }
-
-  const targetMinutes = 510;
-  const hrs = Math.floor(totalMinutes / 60);
-  const mins = Math.round(totalMinutes % 60);
-  const today = new Date().getDay(); // 5 = Friday
-
-  if (totalMinutes >= targetMinutes) {
-    showConfetti();
-    if (today === 5) {
-      showMessage(`🎉 It's Friday! Happy Weekend! You worked ${hrs} hr ${mins} min 🎊`);
-    } else {
-      showMessage(`✅ Great job! Total worked time: ${hrs} hr ${mins} min 🎉`);
-    }
-  } else {
-    const remain = targetMinutes - totalMinutes;
-    const rh = Math.floor(remain / 60);
-    const rm = Math.round(remain % 60);
-    showMessage(`⏳ Total worked time: ${hrs} hr ${mins} min<br>⌛ Still need ${rh} hr ${rm} min<br><i>Keep pushing – you're almost there!</i>`);
-  }
+  draw();
 }
