@@ -1,0 +1,105 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Attendance Final Out Time Calculator</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f4f4f4;
+    }
+    textarea {
+      width: 100%;
+      height: 200px;
+      font-family: monospace;
+      margin-bottom: 10px;
+    }
+    .result {
+      background: #fff;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      margin-top: 15px;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+  <h2>📅 Attendance Final Out Time Calculator</h2>
+  <p>Paste your attendance data (tab-separated, with In/Out & timestamps):</p>
+  <textarea id="attendanceInput"></textarea>
+  <button onclick="calculateFinalOutTime()">🧮 Calculate Final Out Time</button>
+
+  <div class="result" id="output" style="display:none;"></div>
+
+  <script>
+    function parseTimestamp(row) {
+      const cols = row.split('\t');
+      const g = cols[6]?.trim();
+      const a = cols[0]?.trim();
+      const b = cols[1]?.trim();
+      let dateStr = g || `${a} ${b}`;
+      const dt = new Date(dateStr);
+      return isNaN(dt.getTime()) ? null : dt;
+    }
+
+    function calculateFinalOutTime() {
+      const input = document.getElementById("attendanceInput").value.trim();
+      const lines = input.split("\n");
+      let inStack = [];
+      let totalWorkedMin = 0;
+
+      lines.forEach(line => {
+        const cols = line.split("\t");
+        const type = cols[2]?.trim().toLowerCase();
+        const timestamp = parseTimestamp(line);
+        if (!timestamp) return;
+
+        if (type === "in") {
+          inStack.push(timestamp);
+        } else if (type === "out" && inStack.length > 0) {
+          const lastIn = inStack.shift();
+          const durationMin = (timestamp - lastIn) / 60000;
+          if (durationMin > 0) totalWorkedMin += durationMin;
+        }
+      });
+
+      const targetMin = 510;
+      const remainingMin = targetMin - totalWorkedMin;
+      const lastUnmatchedIn = inStack.length > 0 ? inStack[inStack.length - 1] : null;
+
+      const outputDiv = document.getElementById("output");
+      outputDiv.style.display = "block";
+
+      if (!lastUnmatchedIn && remainingMin > 0) {
+        outputDiv.innerHTML = `
+          <p>✅ Total Worked Time: ${Math.floor(totalWorkedMin / 60)}h ${Math.round(totalWorkedMin % 60)}m</p>
+          <p>🎉 You’ve already completed your 8h 30m workday!</p>
+        `;
+      } else if (lastUnmatchedIn && remainingMin > 0) {
+        const finalOut = new Date(lastUnmatchedIn.getTime() + remainingMin * 60000);
+        const options = { hour: 'numeric', minute: 'numeric', hour12: true };
+        const timeString = finalOut.toLocaleTimeString('en-US', options);
+        outputDiv.innerHTML = `
+          <p>✅ Total Worked Time: ${Math.floor(totalWorkedMin / 60)}h ${Math.round(totalWorkedMin % 60)}m</p>
+          <p>⏳ Remaining Time: ${Math.floor(remainingMin / 60)}h ${Math.round(remainingMin % 60)}m</p>
+          <p>⏰ Final Out Time: <strong>${timeString}</strong></p>
+        `;
+      } else {
+        outputDiv.innerHTML = `<p>❌ Could not calculate. Check your input data.</p>`;
+      }
+    }
+  </script>
+</body>
+</html>
